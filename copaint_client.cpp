@@ -1,6 +1,4 @@
 #include "copaint_common.hpp"
-#include "network/net_client.h"
-#include "network/net_message.h"
 #include <SFML/Config.hpp>
 #include <SFML/Graphics.hpp>
 #include <SFML/Graphics/Color.hpp>
@@ -16,6 +14,7 @@
 #include <SFML/Window/Keyboard.hpp>
 #include <SFML/Window/Mouse.hpp>
 #include <iostream>
+#include <ostream>
 #include <sys/socket.h>
 #include <vector>
 #define WINDOW_WIDTH 800
@@ -25,8 +24,7 @@
 class CoopPaint_client : olc::net::client_interface<NetMessage> {
 public:
   CoopPaint_client()
-      : window(sf::VideoMode(WINDOW_WIDTH, WINDOW_HEIGHT),
-               "Speed Vs Speedier") {
+      : window(sf::VideoMode(WINDOW_WIDTH, WINDOW_HEIGHT), "copaint") {
 
     canvas.create(WINDOW_WIDTH, WINDOW_HEIGHT, sf::Color::White);
   }
@@ -34,7 +32,9 @@ public:
 
     // send 10 messages over the network a second
     sf::Clock bufferNetworkClock;
-    sf::Time bufferLen = sf::milliseconds(100);
+    sf::Clock throttleClock;
+
+    sf::Time bufferLen = sf::milliseconds(10);
     if (!initNetwork()) {
       std::cout << "Failed to initialize network\n";
     }
@@ -72,6 +72,8 @@ public:
     olc::net::message<NetMessage> strokesUpdate;
     strokesUpdate.header.id = NetMessage::Canvas_AddStrokes;
     strokesUpdate << bufferedLocalStrokes;
+    std::cout << "Sending this many strokes :"
+              << bufferedLocalStrokes.strokes.size() << "\n";
     Send(strokesUpdate);
     bufferedLocalStrokes.strokes.clear();
   }
@@ -107,11 +109,15 @@ public:
         }
         case NetMessage::Canvas_AddStrokes: {
           StrokeBuffer remoteStrokeBuffer;
+          std::cout << "Trying to pull data out" << std::endl;
           msg >> remoteStrokeBuffer;
+          std::cout << remoteStrokeBuffer.strokes[0].start.x << "|"
+                    << remoteStrokeBuffer.strokes[0].start.y << std::endl;
           for (Stroke stroke : remoteStrokeBuffer.strokes) {
             drawPixels(stroke.start, stroke.finish, stroke.color, stroke.size);
           }
-        } break;
+          break;
+        }
         }
       }
     }
@@ -128,18 +134,20 @@ public:
         }
         isHolding = true;
         oldLocation = mouse;
-      } else {
-        isHolding = false;
       }
+    } else {
+      isHolding = false;
     }
   }
   void drawLoadingScreen() {
+    std::cout << "Draw loading" << std::endl;
     window.clear(sf::Color::White);
     sf::Text text;
     text.setString("Loading Canvas Connection...");
     text.setCharacterSize(24);
     text.setFillColor(sf::Color::Black);
     text.setStyle(sf::Text::Bold);
+    window.draw(text);
     window.display();
   }
   void updateCanvas() {

@@ -1,5 +1,4 @@
 #include "copaint_common.hpp"
-#include "network/net_server.h"
 class CoopPaint_server : public olc::net::server_interface<NetMessage> {
 public:
   CoopPaint_server(uint16_t nport)
