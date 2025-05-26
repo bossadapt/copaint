@@ -47,9 +47,10 @@ struct StrokeBuffer {
   std::vector<Stroke> strokes;
   friend olc::net::message<NetMessage> &
   operator<<(olc::net::message<NetMessage> &msg, const StrokeBuffer &buffer) {
-    std::cout << "sending unique of:" << buffer.nUniqueID << std::endl;
-    std::cout << "Sending a buffer size of" << uint32_t(buffer.strokes.size())
-              << std::endl;
+    // std::cout << "sending unique of:" << buffer.nUniqueID << std::endl;
+    // std::cout << "Sending a buffer size of" <<
+    // uint32_t(buffer.strokes.size())
+    //          << std::endl;
 
     for (const auto &stroke : buffer.strokes) {
       msg << stroke;
@@ -65,8 +66,8 @@ struct StrokeBuffer {
     msg >> buffer.nUniqueID;
     uint32_t strokeCount;
     msg >> strokeCount;
-    std::cout << "Recieving a unique of" << buffer.nUniqueID << std::endl;
-    std::cout << "Recieving a buffer size of" << strokeCount << std::endl;
+    // std::cout << "Recieving a unique of" << buffer.nUniqueID << std::endl;
+    // std::cout << "Recieving a buffer size of" << strokeCount << std::endl;
     buffer.strokes.resize(strokeCount);
     for (auto &stroke : buffer.strokes) {
       msg >> stroke;

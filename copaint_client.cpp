@@ -72,11 +72,14 @@ public:
     olc::net::message<NetMessage> strokesUpdate;
     strokesUpdate.header.id = NetMessage::Canvas_AddStrokes;
     strokesUpdate << bufferedLocalStrokes;
-    std::cout << "Sending this many strokes :"
-              << bufferedLocalStrokes.strokes.size() << "\n";
     Send(strokesUpdate);
     bufferedLocalStrokes.strokes.clear();
   }
+  // TODO: figure out how to more sanely close when the server does not exist
+  // TODO: add brush size and color
+  // TODO: send the canvas image to new joinees
+  // TODO: set up rooms  to join
+  // TODO: possibly add more tools
   void updateFromNetwork() {
     if (IsConnected()) {
       while (!Incoming().empty()) {
