@@ -1,13 +1,9 @@
 #pragma once
+
 #include "net_common.h"
 #include "net_connection.h"
 #include "net_message.h"
-#include <cstddef>
-#include <cstdint>
-#include <exception>
-#include <memory>
-#include <system_error>
-#include <utility>
+#include "net_tsqueue.h"
 
 namespace olc {
 namespace net {
@@ -48,7 +44,7 @@ public:
         if (OnClientConnect(newconn)) {
           // Connection allowed, so add to container of connections
           m_deqConnections.push_back(std::move(newconn));
-          m_deqConnections.back()->ConnectToClient(nIDCounter++);
+          m_deqConnections.back()->ConnectToClient(this, nIDCounter++);
           std::cout << "[" << m_deqConnections.back()->GetID()
                     << "] Connection Approved \n";
         } else {
@@ -86,13 +82,16 @@ public:
         }
       }
     }
-
+    // remove any disconnected clients
     if (bInvalidClientExists) {
       m_deqConnections.erase(std::remove(m_deqConnections.begin(),
                                          m_deqConnections.end(), nullptr));
     }
   }
-  void Update(size_t nMaxMessages = -1) {
+  void Update(size_t nMaxMessages = -1, bool bWait = false) {
+    if (bWait) {
+      m_qMessagesIn.wait();
+    }
     size_t nMessageCount = 0;
     while (nMessageCount < nMaxMessages && !m_qMessagesIn.empty()) {
       auto msg = m_qMessagesIn.pop_front();
@@ -108,6 +107,9 @@ protected:
   virtual void OnClientDisconnect(std::shared_ptr<connection<T>> client) {}
   virtual void OnMessage(std::shared_ptr<connection<T>> client,
                          message<T> &msg) {}
+
+public:
+  virtual void OnClientValidated(std::shared_ptr<connection<T>> client) {}
 
 protected:
   // incoming messages

@@ -1,25 +1,22 @@
 #pragma once
 #include "net_common.h"
 #include "net_connection.h"
-#include "net_message.h"
-#include <exception>
-#include <memory>
-#include <string>
-
 namespace olc {
 namespace net {
 template <typename T> class client_interface {
+public:
   client_interface() : m_socket(m_context) {}
   virtual ~client_interface() { Disconnect(); }
 
 public:
   bool Connect(const std::string &host, const uint16_t port) {
     try {
-      m_connection = std::make_unique<connection<T>>();
-
       asio::ip::tcp::resolver resolver(m_context);
       asio::ip::tcp::resolver::results_type m_endpoint =
           resolver.resolve(host, std::to_string(port));
+      m_connection = std::make_unique<connection<T>>(
+          connection<T>::owner::client, m_context,
+          asio::ip::tcp::socket(m_context), m_qMessagesIn);
       m_connection->ConnectToServer(m_endpoint);
       thrContext = std::thread([this]() { m_context.run(); });
 
@@ -29,7 +26,7 @@ public:
     return true;
   }
   bool Disconnect() {
-    if (IsConnect()) {
+    if (IsConnected()) {
       m_connection->Disconnect();
     }
     m_context.stop();
@@ -38,11 +35,16 @@ public:
     }
     m_connection.release();
   }
-  bool IsConnect() {
+  bool IsConnected() {
     if (m_connection)
       return m_connection->IsConnected();
     else
       return false;
+  }
+  // Send message to server
+  void Send(const message<T> &msg) {
+    if (IsConnected())
+      m_connection->Send(msg);
   }
   tsqueue<owned_message<T>> &Incoming() { return m_qMessagesIn; }
 

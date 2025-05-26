@@ -1,7 +1,6 @@
+#pragma once
+
 #include "net_common.h"
-#include <cstddef>
-#include <mutex>
-#include <utility>
 
 namespace olc {
 namespace net {
@@ -23,10 +22,16 @@ public:
   void push_back(const T &item) {
     std::scoped_lock lock(muxQueue);
     deQueue.emplace_back(std::move(item));
+
+    std::unique_lock<std::mutex> ul(muxBlocking);
+    cvBlocking.notify_one();
   }
   void push_front(const T &item) {
     std::scoped_lock lock(muxQueue);
     deQueue.emplace_front(std::move(item));
+
+    std::unique_lock<std::mutex> ul(muxBlocking);
+    cvBlocking.notify_one();
   }
   bool empty() {
     std::scoped_lock lock(muxQueue);
@@ -46,10 +51,26 @@ public:
     deQueue.pop_front();
     return t;
   }
+  T pop_back() {
+    std::scoped_lock lock(muxQueue);
+    auto t = std::move(deQueue.back());
+    deQueue.pop_back();
+    return t;
+  }
+  void wait() {
+    // sleep loop for accidental escapes
+    while (empty()) {
+      std::unique_lock<std::mutex> ul(muxBlocking);
+      cvBlocking.wait(ul);
+    }
+  }
 
 protected:
   std::mutex muxQueue;
   std::deque<T> deQueue;
+
+  std::condition_variable cvBlocking;
+  std::mutex muxBlocking;
 };
 
 } // namespace net

@@ -1,6 +1,5 @@
 #pragma once
 #include "net_common.h"
-#include <type_traits>
 namespace olc {
 namespace net {
 template <typename T> struct message_header {

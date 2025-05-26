@@ -6,9 +6,6 @@
             "command": "/usr/bin/g++",
             "args": [
                 "-g",
-                "${file}",
-                "-o",
-                "${fileDirname}/${fileBasenameNoExtension}"
             ],
             "options": {
                 // "cwd": "/usr/bin"
