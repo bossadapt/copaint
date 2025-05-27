@@ -2,6 +2,7 @@
 #include <SFML/Config.hpp>
 #include <SFML/Graphics.hpp>
 #include <SFML/Graphics/Color.hpp>
+#include <SFML/Graphics/Font.hpp>
 #include <SFML/Graphics/RectangleShape.hpp>
 #include <SFML/Graphics/RenderWindow.hpp>
 #include <SFML/Graphics/Sprite.hpp>
@@ -30,26 +31,35 @@ public:
   }
   void start() {
 
-    // send 10 messages over the network a second
+    // send 100 messages over the network a second with buffered stroke lengths
     sf::Clock bufferNetworkClock;
-    sf::Clock throttleClock;
-
     sf::Time bufferLen = sf::milliseconds(10);
-    if (!initNetwork()) {
-      std::cout << "Failed to initialize network\n";
+    // if server did not initialize in 5 seconds close with terminal message
+    sf::Clock initializationTimeoutClock;
+    sf::Time timeoutLength = sf::milliseconds(5000);
+    sf::Font font;
+    if (!networkPrep()) {
+      std::cout << "Failed to set up client socket\n";
+      return;
+    }
+    if (!font.loadFromFile("./assets/Freedom-10eM.ttf")) {
+      std::cout << "Failed to load font from assets\n";
+      return;
     }
     while (window.isOpen()) {
       // check all the window's events that were triggered since the last
       // iteration of the loop
       sf::Event event;
       updateFromNetwork();
-      if (initializationFinished) {
 
-        while (window.pollEvent(event)) {
-          // "close requested" event: we close the window
-          if (event.type == sf::Event::Closed)
-            window.close();
-        }
+      while (window.pollEvent(event)) {
+        // "close requested" event: we close the window
+        if (event.type == sf::Event::Closed)
+          window.close();
+      }
+      if (initializationFinished) {
+        std::cout << "Initialization finished";
+
         getLocalInput();
         if (bufferNetworkClock.getElapsedTime() > bufferLen &&
             !bufferedLocalStrokes.strokes.empty()) {
@@ -58,11 +68,16 @@ public:
         }
 
         updateCanvas();
+
+      } else if (initializationTimeoutClock.getElapsedTime() > timeoutLength) {
+        std::cout << "Connection to server for initialization failed \n";
+        return;
       } else {
+        drawLoadingScreen(font);
       }
     }
   }
-  bool initNetwork() {
+  bool networkPrep() {
     if (Connect("127.0.0.1", 60000)) {
       return true;
     }
@@ -75,7 +90,6 @@ public:
     Send(strokesUpdate);
     bufferedLocalStrokes.strokes.clear();
   }
-  // TODO: figure out how to more sanely close when the server does not exist
   // TODO: add brush size and color
   // TODO: send the canvas image to new joinees
   // TODO: set up rooms  to join
@@ -142,14 +156,15 @@ public:
       isHolding = false;
     }
   }
-  void drawLoadingScreen() {
-    std::cout << "Draw loading" << std::endl;
+  void drawLoadingScreen(sf::Font font) {
     window.clear(sf::Color::White);
     sf::Text text;
     text.setString("Loading Canvas Connection...");
+    text.setFont(font);
     text.setCharacterSize(24);
     text.setFillColor(sf::Color::Black);
     text.setStyle(sf::Text::Bold);
+    text.setPosition(200, 200);
     window.draw(text);
     window.display();
   }
