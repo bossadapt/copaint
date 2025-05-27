@@ -1,9 +1,13 @@
 #include "olcPGEX_Network.h"
 #include <SFML/Graphics/Color.hpp>
+#include <SFML/Graphics/Image.hpp>
 #include <SFML/System/Vector2.hpp>
 #include <cstdint>
+#include <cstdio>
 #include <sys/types.h>
 #include <vector>
+#define WINDOW_WIDTH 800
+#define WINDOW_HEIGHT 600
 enum class NetMessage : int32_t {
   Client_Accepted,
 
@@ -11,6 +15,8 @@ enum class NetMessage : int32_t {
   Client_RegisterWithServer,
   Client_UnregisterWithServer,
 
+  Canvas_RequestCanvas,
+  Canvas_AddCanvas,
   Canvas_AddPainter,
   Canvas_RemovePainter,
 

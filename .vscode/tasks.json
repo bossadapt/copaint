@@ -5,10 +5,16 @@
             "label": "g++ build active file",
             "command": "/usr/bin/g++",
             "args": [
-                "-g",
+                "${fileDirname}/${fileBasename}", // Use the full filename with extension
+                "-std=c++17",
+                "-Wall",
+                "-o",
+                "${fileBasenameNoExtension}", // Output executable without .o extension
+                "-lsfml-graphics",
+                "-lsfml-window",
+                "-lsfml-system"
             ],
             "options": {
-                // "cwd": "/usr/bin"
                 "cwd": "${workspaceFolder}"
             }
         }

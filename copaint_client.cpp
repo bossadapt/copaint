@@ -1,4 +1,5 @@
 #include "copaint_common.hpp"
+#include "olcPGEX_Network.h"
 #include <SFML/Config.hpp>
 #include <SFML/Graphics.hpp>
 #include <SFML/Graphics/Color.hpp>
@@ -14,21 +15,20 @@
 #include <SFML/System/Vector2.hpp>
 #include <SFML/Window/Keyboard.hpp>
 #include <SFML/Window/Mouse.hpp>
+#include <cstdio>
+#include <exception>
 #include <iostream>
 #include <ostream>
+#include <stdexcept>
 #include <sys/socket.h>
 #include <vector>
-#define WINDOW_WIDTH 800
-#define WINDOW_HEIGHT 600
+
 // actions that can be taken
 //  click
 class CoopPaint_client : olc::net::client_interface<NetMessage> {
 public:
   CoopPaint_client()
-      : window(sf::VideoMode(WINDOW_WIDTH, WINDOW_HEIGHT), "copaint") {
-
-    canvas.create(WINDOW_WIDTH, WINDOW_HEIGHT, sf::Color::White);
-  }
+      : window(sf::VideoMode(WINDOW_WIDTH, WINDOW_HEIGHT), "copaint") {}
   void start() {
 
     // send 100 messages over the network a second with buffered stroke lengths
@@ -58,8 +58,6 @@ public:
           window.close();
       }
       if (initializationFinished) {
-        std::cout << "Initialization finished";
-
         getLocalInput();
         if (bufferNetworkClock.getElapsedTime() > bufferLen &&
             !bufferedLocalStrokes.strokes.empty()) {
@@ -90,8 +88,11 @@ public:
     Send(strokesUpdate);
     bufferedLocalStrokes.strokes.clear();
   }
-  // TODO: add brush size and color
+  // For Anyone looking to expand on this project
+  // TODO: make it so everyone has to wait while the user is  syncing if perfect
+  // 1:1 sync is what you want
   // TODO: send the canvas image to new joinees
+  // TODO: add brush size and color
   // TODO: set up rooms  to join
   // TODO: possibly add more tools
   void updateFromNetwork() {
@@ -110,12 +111,54 @@ public:
         case NetMessage::Client_AssignID: {
           msg >> nUniqueID;
           std::cout << "Assigned CLient ID Recieved :" << nUniqueID << "\n";
-          initializationFinished = true;
           bufferedLocalStrokes.nUniqueID = nUniqueID;
           break;
         }
-        // case NetMessageTypes::Client_RegisterWithServer: handled by server
-        // case NetMessageTypes::Client_UnregisterWithServer: handled by server
+        case NetMessage::Canvas_RequestCanvas: {
+          printf("a canvas was requested from this client\n");
+
+          olc::net::message<NetMessage> canvasResponse;
+          canvasResponse.header.id = NetMessage::Canvas_AddCanvas;
+
+          // Get raw pixel data
+          const sf::Uint8 *pixels = canvas.getPixelsPtr();
+          uint32_t width = WINDOW_WIDTH;
+          uint32_t height = WINDOW_HEIGHT;
+          uint32_t size = width * height * 4; // 4 bytes per pixel (RGBA)
+
+          // Send pixel data in reverse (because olc::net::message is a stack)
+          for (int i = size - 1; i >= 0; --i) {
+            canvasResponse << pixels[i];
+          }
+          canvasResponse << height << width << size;
+          Send(canvasResponse);
+          break;
+        }
+        case NetMessage::Canvas_AddCanvas: {
+
+          std::cout << "Canvas Recieved \n";
+
+          initializationFinished = true;
+
+          uint32_t size, width, height;
+          msg >> size >> width >> height;
+
+          std::vector<sf::Uint8> imageVector(size);
+          for (int i = 0; i < size; ++i) {
+            msg >> imageVector[i];
+          }
+
+          // Rebuild image from raw pixel data
+          canvas.create(width, height, imageVector.data());
+
+          std::cout << "Canvas Finished recieving :" << nUniqueID << "\n";
+          std::cout << "Canvas Size " << canvas.getSize().x << "|"
+                    << canvas.getSize().y << "\n";
+        }
+        // TODO: make initialization check if they have both and ID and initial
+        // canvas
+        //  case NetMessageTypes::Client_RegisterWithServer: handled by server
+        //  case NetMessageTypes::Client_UnregisterWithServer: handled by server
         case NetMessage::Canvas_AddPainter: {
           std::cout << "Painter has joined\n";
           break;
@@ -126,10 +169,7 @@ public:
         }
         case NetMessage::Canvas_AddStrokes: {
           StrokeBuffer remoteStrokeBuffer;
-          std::cout << "Trying to pull data out" << std::endl;
           msg >> remoteStrokeBuffer;
-          std::cout << remoteStrokeBuffer.strokes[0].start.x << "|"
-                    << remoteStrokeBuffer.strokes[0].start.y << std::endl;
           for (Stroke stroke : remoteStrokeBuffer.strokes) {
             drawPixels(stroke.start, stroke.finish, stroke.color, stroke.size);
           }

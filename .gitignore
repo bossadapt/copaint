@@ -1,4 +1,8 @@
+#made by justfile run server/client
 server.o
 client.o
+#made by the basic 
 a.out
-main
+#made by debugger vscode
+copaint_client
+copaint_server
